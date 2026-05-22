@@ -1,0 +1,32 @@
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Proxy /api/* → Garage admin API (strips /api prefix)
+    location /api/ {
+        proxy_pass ${GARAGE_UPSTREAM_URL}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 60s;
+    }
+
+    # Optional /s3/* proxy, injected by docker-entrypoint.sh when
+    # GARAGE_S3_PROXY=true. Only useful for unsigned S3 access — SigV4
+    # signing breaks across path-rewriting proxies.
+    ${S3_PROXY_BLOCK}
+
+    # SPA fallback — all other routes serve index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Security headers
+    add_header X-Frame-Options SAMEORIGIN;
+    add_header X-Content-Type-Options nosniff;
+
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json;
+}

@@ -1,0 +1,32 @@
+services:
+  garage-admin-ui:
+    build: .
+    ports:
+      - "8080:80"
+    env_file:
+      - .env
+    environment:
+      GARAGE_UPSTREAM_URL: ${GARAGE_UPSTREAM_URL:-http://garage:3903}
+      GARAGE_S3_UPSTREAM_URL: ${GARAGE_S3_UPSTREAM_URL:-http://garage:3900}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-}
+      GARAGE_API_URL: ${GARAGE_API_URL:-/api}
+      GARAGE_S3_PROXY: ${GARAGE_S3_PROXY:-false}
+
+    restart: unless-stopped
+
+  # ── Example: run Garage alongside the UI ───────────────────────────────────
+  # Uncomment and adjust if you want to spin up Garage in the same compose stack
+  # garage:
+  #   image: dxflrs/garage:v2
+  #   volumes:
+  #     - ./garage.toml:/etc/garage.toml
+  #     - garage-data:/var/lib/garage/data
+  #     - garage-meta:/var/lib/garage/meta
+  #   ports:
+  #     - "3900:3900"   # S3 API
+  #     - "3903:3903"   # Admin API (only expose locally)
+  #   restart: unless-stopped
+
+# volumes:
+#   garage-data:
+#   garage-meta:
