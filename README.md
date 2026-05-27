@@ -96,6 +96,8 @@ Click **Save**.
 
 Go to **Access Keys → New Key**, give it a name, and copy the **Key ID** and **Secret**. Keep the secret — it is only shown once.
 
+> **Prefer the CLI?** See [Creating keys from the Garage CLI](#creating-keys-from-the-garage-cli) below.
+
 ### Step 3 — Grant bucket permissions
 
 Go to **Buckets**, find your bucket, click **Keys**, then grant the key **read + write** (and **owner** if you want to manage the bucket).
@@ -117,6 +119,83 @@ Click **Save S3 Settings**.
 Go to **Buckets → Browse** on any bucket. The first load may fail with a CORS error — that is expected. Click **Configure CORS** in the top-right corner. This sets permissive cross-origin rules on the bucket via the admin API. Reload the page — the browser can now access S3 directly.
 
 > CORS only needs to be configured once per bucket.
+
+---
+
+## Creating keys from the Garage CLI
+
+The UI is the easiest way, but everything can also be done with the `garage` CLI on the cluster node. Reference: [Garage Quick-start docs](https://garagehq.deuxfleurs.fr/documentation/quick-start/) and the [CLI reference](https://garagehq.deuxfleurs.fr/documentation/reference-manual/cli/).
+
+> If Garage runs in Docker, prefix every command with `docker exec -ti <container> /garage` (e.g. `docker exec -ti garage /garage key list`). Otherwise just call `garage` directly on the host.
+
+### 🔑 Create an access key
+
+```bash
+garage key create my-app-key
+```
+
+Output looks like:
+
+```text
+Key name: my-app-key
+Key ID:   GK<...>
+Secret key: <hex-secret>
+Can create buckets: false
+Authorized buckets: (none)
+```
+
+> ⚠️ The **Secret key** is only printed at creation time — copy it immediately. You'll paste both the Key ID and Secret into **Settings → S3 API** in this UI.
+
+### 📋 Inspect / list keys
+
+```bash
+garage key list                 # all keys (ID + name only)
+garage key info my-app-key      # full details for one key
+```
+
+`garage key info` re-prints the secret, but only if the key was created on Garage v1.0.0+ with the secret retained on the node.
+
+### 🪣 Create a bucket (optional)
+
+```bash
+garage bucket create my-bucket
+garage bucket list
+garage bucket info my-bucket
+```
+
+### ✅ Grant bucket permissions to the key
+
+```bash
+garage bucket allow \
+  --read \
+  --write \
+  --owner \
+  my-bucket \
+  --key my-app-key
+```
+
+Drop `--owner` if the key should only read/write objects but not change bucket settings. To revoke later:
+
+```bash
+garage bucket deny --read --write --owner my-bucket --key my-app-key
+```
+
+### 🌐 Add a global alias (optional)
+
+Makes the bucket reachable by a friendly name across all keys:
+
+```bash
+garage bucket alias my-bucket my-bucket-alias
+```
+
+### 🔁 Rotate or delete a key
+
+```bash
+garage key rename my-app-key my-app-key-v2
+garage key delete --yes my-app-key
+```
+
+Once the key is created and authorized, paste the **Key ID** and **Secret** into **Settings → S3 API** in this UI and you're done — buckets will appear under the **Buckets** tab.
 
 ---
 
