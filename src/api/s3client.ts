@@ -24,10 +24,21 @@ export function setS3Settings(s: S3Settings): void {
   localStorage.setItem(SECRET_KEY, s.secret);
 }
 
+/**
+ * The AWS SDK requires an absolute endpoint URL. Resolve relative paths (e.g.
+ * the default proxied "/s3") against the current page origin; pass absolute
+ * URLs through unchanged. Returns undefined when no endpoint is configured.
+ */
+function resolveEndpoint(endpoint: string): string | undefined {
+  const trimmed = endpoint.trim();
+  if (!trimmed) return undefined;
+  return new URL(trimmed, window.location.origin).toString();
+}
+
 export function createS3Client(settings?: S3Settings): S3Client {
   const { endpoint, keyId, secret } = settings ?? getS3Settings();
   return new S3Client({
-    endpoint: endpoint || undefined,
+    endpoint: resolveEndpoint(endpoint),
     region: "garage",
     credentials: { accessKeyId: keyId || "anon", secretAccessKey: secret || "anon" },
     forcePathStyle: true,

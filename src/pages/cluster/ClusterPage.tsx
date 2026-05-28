@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,11 +10,7 @@ import { Server, HardDrive, CheckCircle2, XCircle, Database } from "lucide-react
 function useClusterStatus() {
   return useQuery({
     queryKey: ["cluster", "status"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetClusterStatus");
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
-    },
+    queryFn: () => unwrap(getClient().GET("/v2/GetClusterStatus")),
     refetchInterval: 15_000,
   });
 }
@@ -22,11 +18,7 @@ function useClusterStatus() {
 function useClusterHealth() {
   return useQuery({
     queryKey: ["cluster", "health"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetClusterHealth");
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
-    },
+    queryFn: () => unwrap(getClient().GET("/v2/GetClusterHealth")),
     refetchInterval: 15_000,
   });
 }
@@ -34,11 +26,7 @@ function useClusterHealth() {
 function useClusterStats() {
   return useQuery({
     queryKey: ["cluster", "statistics"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetClusterStatistics");
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
-    },
+    queryFn: () => unwrap(getClient().GET("/v2/GetClusterStatistics")),
     refetchInterval: 30_000,
   });
 }

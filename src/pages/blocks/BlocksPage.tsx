@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Button } from "@/components/ui/button";
@@ -18,10 +18,9 @@ function useBlockErrors() {
   return useQuery({
     queryKey: ["block-errors"],
     queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/ListBlockErrors", {
+      const data = await unwrap(getClient().GET("/v2/ListBlockErrors", {
         params: { query: { node: "*" } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
       if (!data) return [] as BlockError[];
       // Flatten multi-node response
       const all: BlockError[] = [];
@@ -40,11 +39,10 @@ function BlockErrorsPanel() {
 
   const retry = useMutation({
     mutationFn: async (hash: string) => {
-      const { error } = await getClient().POST("/v2/RetryBlockResync", {
+      await unwrap(getClient().POST("/v2/RetryBlockResync", {
         params: { query: { node: "*" } },
         body: { blockHashes: [hash] },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["block-errors"] }); toast({ title: "Resync queued" }); },
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -52,11 +50,10 @@ function BlockErrorsPanel() {
 
   const purge = useMutation({
     mutationFn: async (hash: string) => {
-      const { error } = await getClient().POST("/v2/PurgeBlocks", {
+      await unwrap(getClient().POST("/v2/PurgeBlocks", {
         params: { query: { node: "*" } },
         body: [hash],
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["block-errors"] }); toast({ title: "Block purged" }); },
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -120,11 +117,9 @@ function InspectObjectPanel() {
 
   const inspect = useMutation({
     mutationFn: async () => {
-      const { data, error } = await getClient().GET("/v2/InspectObject", {
+      return unwrap(getClient().GET("/v2/InspectObject", {
         params: { query: { bucketId, key } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
+      }));
     },
     onSuccess: (data) => setResult(JSON.stringify(data, null, 2)),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -164,12 +159,10 @@ function BlockInfoPanel() {
 
   const getInfo = useMutation({
     mutationFn: async () => {
-      const { data, error } = await getClient().POST("/v2/GetBlockInfo", {
+      return unwrap(getClient().POST("/v2/GetBlockInfo", {
         params: { query: { node } },
         body: { blockHash: hash },
-      });
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
+      }));
     },
     onSuccess: (data) => setResult(JSON.stringify(data, null, 2)),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),

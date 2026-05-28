@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Check, FolderOpen, Plus, Tag, Trash2, X,
 } from "lucide-react";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +24,9 @@ function useBucketInfo(id: string) {
   return useQuery({
     queryKey: ["bucket-info", id],
     queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetBucketInfo", {
+      return unwrap(getClient().GET("/v2/GetBucketInfo", {
         params: { query: { id } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
-      return data!;
+      }));
     },
   });
 }
@@ -103,8 +101,7 @@ function AliasesSection({ id, info }: { id: string; info: BucketInfo }) {
 
   const addAlias = useMutation({
     mutationFn: async (body: Record<string, string>) => {
-      const { error } = await getClient().POST("/v2/AddBucketAlias", { body: body as never });
-      if (error) throw new Error(JSON.stringify(error));
+      await unwrap(getClient().POST("/v2/AddBucketAlias", { body: body as never }));
     },
     onSuccess: () => { invalidate(); toast({ title: "Alias added" }); },
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -112,8 +109,7 @@ function AliasesSection({ id, info }: { id: string; info: BucketInfo }) {
 
   const removeAlias = useMutation({
     mutationFn: async (body: Record<string, string>) => {
-      const { error } = await getClient().POST("/v2/RemoveBucketAlias", { body: body as never });
-      if (error) throw new Error(JSON.stringify(error));
+      await unwrap(getClient().POST("/v2/RemoveBucketAlias", { body: body as never }));
     },
     onSuccess: () => { invalidate(); toast({ title: "Alias removed" }); },
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -248,15 +244,14 @@ function QuotasSection({ id, info }: { id: string; info: BucketInfo }) {
       if (!clear && (Number.isNaN(parsedSize as number) || Number.isNaN(parsedObjects as number))) {
         throw new Error("Quota values must be numbers");
       }
-      const { error } = await getClient().POST("/v2/UpdateBucket", {
+      await unwrap(getClient().POST("/v2/UpdateBucket", {
         params: { query: { id } },
         body: {
           quotas: clear
             ? { maxSize: null, maxObjects: null }
             : { maxSize: parsedSize, maxObjects: parsedObjects },
         },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: (_data, clear) => {
       qc.invalidateQueries({ queryKey: ["bucket-info", id] });
@@ -310,9 +305,7 @@ function KeyPermissionsSection({ id, info }: { id: string; info: BucketInfo }) {
   const { data: allKeys } = useQuery({
     queryKey: ["keys"],
     queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/ListKeys");
-      if (error) throw new Error(JSON.stringify(error));
-      return data ?? [];
+      return (await unwrap(getClient().GET("/v2/ListKeys"))) ?? [];
     },
   });
 
@@ -320,10 +313,9 @@ function KeyPermissionsSection({ id, info }: { id: string; info: BucketInfo }) {
 
   const allow = useMutation({
     mutationFn: async ({ accessKeyId, read, write, owner }: PermArgs) => {
-      const { error } = await getClient().POST("/v2/AllowBucketKey", {
+      await unwrap(getClient().POST("/v2/AllowBucketKey", {
         body: { accessKeyId, bucketId: id, permissions: { read, write, owner } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bucket-info", id] }),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -331,10 +323,9 @@ function KeyPermissionsSection({ id, info }: { id: string; info: BucketInfo }) {
 
   const deny = useMutation({
     mutationFn: async ({ accessKeyId, read, write, owner }: PermArgs) => {
-      const { error } = await getClient().POST("/v2/DenyBucketKey", {
+      await unwrap(getClient().POST("/v2/DenyBucketKey", {
         body: { accessKeyId, bucketId: id, permissions: { read, write, owner } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["bucket-info", id] }),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -435,8 +426,7 @@ function DeleteBucketDialog({ id, name, onClose, onDeleted }: {
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/DeleteBucket", { params: { query: { id } } });
-      if (error) throw new Error(JSON.stringify(error));
+      await unwrap(getClient().POST("/v2/DeleteBucket", { params: { query: { id } } }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["buckets"] });

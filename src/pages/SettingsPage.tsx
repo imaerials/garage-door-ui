@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { getToken, setToken, getBaseUrl, setBaseUrl, refreshClient, clearCredentials } from "@/api/client";
+import { getToken, setToken, getBaseUrl, setBaseUrl, refreshClient, clearCredentials, testConnection } from "@/api/client";
 import { getS3Settings, setS3Settings, refreshS3Client } from "@/api/s3client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "@/hooks/use-toast";
-import { Save, RotateCcw, Eye, EyeOff, Download, Upload } from "lucide-react";
+import { Save, RotateCcw, Eye, EyeOff, Download, Upload, Plug, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 declare global {
   interface Window {
@@ -38,6 +38,17 @@ export function SettingsPage() {
   const [s3Secret, setS3Secret] = useState(s3.secret);
   const [showSecret, setShowSecret] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  const testAdmin = async () => {
+    setTesting(true);
+    setTestResult(null);
+    const result = await testConnection(baseUrl, token);
+    setTestResult(result);
+    setTesting(false);
+  };
 
   const saveAdmin = () => {
     setToken(token);
@@ -159,7 +170,7 @@ export function SettingsPage() {
               <Input
                 id="base-url"
                 value={baseUrl}
-                onChange={(e) => setBaseUrlInput(e.target.value)}
+                onChange={(e) => { setBaseUrlInput(e.target.value); setTestResult(null); }}
                 placeholder="http://192.168.68.71:3903"
                 className="font-mono text-sm"
               />
@@ -175,7 +186,7 @@ export function SettingsPage() {
                 id="admin-token"
                 type="password"
                 value={token}
-                onChange={(e) => setTokenInput(e.target.value)}
+                onChange={(e) => { setTokenInput(e.target.value); setTestResult(null); }}
                 placeholder="Bearer token…"
                 className="font-mono text-sm"
               />
@@ -184,12 +195,28 @@ export function SettingsPage() {
               <Button onClick={saveAdmin} className="flex-1">
                 <Save className="h-4 w-4" />Save
               </Button>
+              <Button variant="outline" onClick={testAdmin} disabled={testing}>
+                {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+                Test Connection
+              </Button>
               {hasRuntimeConfig && (
                 <Button variant="outline" onClick={reset}>
                   <RotateCcw className="h-4 w-4" />Reset
                 </Button>
               )}
             </div>
+            {testResult && (
+              <div
+                className={`flex items-center gap-2 text-sm rounded-md px-3 py-2 ${
+                  testResult.ok
+                    ? "bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400"
+                    : "bg-destructive/10 text-destructive"
+                }`}
+              >
+                {testResult.ok ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <XCircle className="h-4 w-4 shrink-0" />}
+                <span>{testResult.message}</span>
+              </div>
+            )}
           </CardContent>
         </Card>
 

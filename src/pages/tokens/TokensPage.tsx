@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,7 @@ import { truncate } from "@/lib/utils";
 function useTokens() {
   return useQuery({
     queryKey: ["tokens"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/ListAdminTokens");
-      if (error) throw new Error(JSON.stringify(error));
-      return data ?? [];
-    },
+    queryFn: async () => (await unwrap(getClient().GET("/v2/ListAdminTokens"))) ?? [],
   });
 }
 
@@ -35,9 +31,7 @@ function CreateTokenDialog({ open, onClose }: { open: boolean; onClose: () => vo
       const body: { name: string; expiration?: string; neverExpires?: boolean } = { name };
       if (expiry) body.expiration = new Date(expiry).toISOString();
       else body.neverExpires = true;
-      const { data, error } = await getClient().POST("/v2/CreateAdminToken", { body });
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
+      return unwrap(getClient().POST("/v2/CreateAdminToken", { body }));
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["tokens"] });
@@ -95,10 +89,9 @@ function DeleteTokenDialog({ id, onClose }: { id: string; onClose: () => void })
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/DeleteAdminToken", {
+      await unwrap(getClient().POST("/v2/DeleteAdminToken", {
         params: { query: { id } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tokens"] }); toast({ title: "Token deleted" }); onClose(); },
     onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),

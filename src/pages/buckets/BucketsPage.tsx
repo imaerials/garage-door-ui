@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Button } from "@/components/ui/button";
@@ -17,11 +17,7 @@ import { truncate } from "@/lib/utils";
 function useBuckets() {
   return useQuery({
     queryKey: ["buckets"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/ListBuckets");
-      if (error) throw new Error(JSON.stringify(error));
-      return data ?? [];
-    },
+    queryFn: async () => (await unwrap(getClient().GET("/v2/ListBuckets"))) ?? [],
   });
 }
 
@@ -31,10 +27,9 @@ function CreateBucketDialog({ open, onClose }: { open: boolean; onClose: () => v
 
   const create = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/CreateBucket", {
+      await unwrap(getClient().POST("/v2/CreateBucket", {
         body: { globalAlias: name || null },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["buckets"] });
@@ -68,10 +63,9 @@ function DeleteBucketDialog({ id, onClose }: { id: string; onClose: () => void }
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/DeleteBucket", {
+      await unwrap(getClient().POST("/v2/DeleteBucket", {
         params: { query: { id } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["buckets"] });

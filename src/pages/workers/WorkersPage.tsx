@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Button } from "@/components/ui/button";
@@ -20,11 +20,10 @@ function useWorkers() {
   return useQuery({
     queryKey: ["workers"],
     queryFn: async () => {
-      const { data, error } = await getClient().POST("/v2/ListWorkers", {
+      const data = await unwrap(getClient().POST("/v2/ListWorkers", {
         params: { query: { node: "*" } },
         body: {},
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
       // Flatten multi-node response: combine all success arrays
       if (!data) return [] as WorkerInfo[];
       const allWorkers: WorkerInfo[] = [];
@@ -51,11 +50,10 @@ function LaunchRepairDialog({ open, onClose }: { open: boolean; onClose: () => v
 
   const launch = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/LaunchRepairOperation", {
+      await unwrap(getClient().POST("/v2/LaunchRepairOperation", {
         params: { query: { node: "*" } },
         body: { repairType: job },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => { toast({ title: "Repair launched" }); onClose(); },
     onError: (e: Error) => toast({ title: "Failed to launch", description: e.message, variant: "destructive" }),
@@ -101,10 +99,9 @@ function MaintenancePanel() {
 
   const cleanupUploads = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/CleanupIncompleteUploads", {
+      await unwrap(getClient().POST("/v2/CleanupIncompleteUploads", {
         body: { bucketId, olderThanSecs: Number(olderThanDays) * 86400 },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => toast({ title: "Cleanup started" }),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -112,10 +109,9 @@ function MaintenancePanel() {
 
   const snapshot = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/CreateMetadataSnapshot", {
+      await unwrap(getClient().POST("/v2/CreateMetadataSnapshot", {
         params: { query: { node: "*" } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => toast({ title: "Snapshot created" }),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -168,11 +164,10 @@ function WorkerVariableForm() {
 
   const set = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/SetWorkerVariable", {
+      await unwrap(getClient().POST("/v2/SetWorkerVariable", {
         params: { query: { node } },
         body: { variable: varName, value: varValue },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => toast({ title: "Variable set" }),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),

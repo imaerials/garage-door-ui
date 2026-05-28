@@ -67,11 +67,15 @@ src/
 ```
 Page component
   → useQuery / useMutation (TanStack Query)
-    → getClient()  (src/api/client.ts)
+    → unwrap(getClient().GET/POST(...))  (src/api/client.ts)
       → openapi-fetch → /api/* → [proxy] → Garage :3903
 ```
 
-`getClient()` returns a singleton recreated by `refreshClient()` whenever the user saves new credentials in Settings. Credentials are stored in `localStorage` (token, base URL), with fallback to `window.__GARAGE_CONFIG__` injected at container startup.
+`getClient()` returns a singleton recreated by `refreshClient()` whenever the user saves new credentials in Settings. Credentials are stored in `localStorage` (token, base URL, the latter trailing-slash-normalized on read), with fallback to `window.__GARAGE_CONFIG__` injected at container startup. Each request carries a 30s timeout (`AbortSignal.timeout`).
+
+Every call is wrapped in **`unwrap()`**, which returns the response `data` or throws a readable **`ApiError`** (HTTP status attached). It extracts Garage's `{ code, message }` error body, turns 401/403 into "check your admin token", and reports network failures and timeouts with a clear message instead of a raw `TypeError`. `App.tsx` configures react-query to retry transient failures once but skip 4xx (bad token/request). The shared `ErrorState` component then renders `error.message` directly.
+
+`testConnection(baseUrl, token)` builds a throwaway client and pings `GetClusterHealth` to back the Settings **Test Connection** button, without disturbing the live singleton.
 
 ### S3 API
 

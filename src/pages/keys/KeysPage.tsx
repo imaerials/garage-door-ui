@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,7 @@ import { Link } from "react-router-dom";
 function useKeys() {
   return useQuery({
     queryKey: ["keys"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/ListKeys");
-      if (error) throw new Error(JSON.stringify(error));
-      return data ?? [];
-    },
+    queryFn: async () => (await unwrap(getClient().GET("/v2/ListKeys"))) ?? [],
   });
 }
 
@@ -35,9 +31,7 @@ function CreateKeyDialog({ open, onClose }: { open: boolean; onClose: () => void
 
   const create = useMutation({
     mutationFn: async () => {
-      const { data, error } = await getClient().POST("/v2/CreateKey", { body: { name } });
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
+      return unwrap(getClient().POST("/v2/CreateKey", { body: { name } }));
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["keys"] });
@@ -105,10 +99,9 @@ function DeleteKeyDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const qc = useQueryClient();
   const del = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/DeleteKey", {
+      await unwrap(getClient().POST("/v2/DeleteKey", {
         params: { query: { id } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["keys"] }); toast({ title: "Key deleted" }); onClose(); },
     onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
@@ -136,21 +129,18 @@ function KeyDetailDialog({ keyId, onClose }: { keyId: string; onClose: () => voi
   const { data, isLoading } = useQuery({
     queryKey: ["key-info", keyId],
     queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetKeyInfo", {
+      return unwrap(getClient().GET("/v2/GetKeyInfo", {
         params: { query: { id: keyId } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
-      return data!;
+      }));
     },
   });
 
   const updateCreateBucket = useMutation({
     mutationFn: async (grant: boolean) => {
-      const { error } = await getClient().POST("/v2/UpdateKey", {
+      await unwrap(getClient().POST("/v2/UpdateKey", {
         params: { query: { id: keyId } },
         body: grant ? { allow: { createBucket: true } } : { deny: { createBucket: true } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["key-info", keyId] }),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),

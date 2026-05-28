@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
 import { Button } from "@/components/ui/button";
@@ -24,22 +24,14 @@ function hasCapacity(role: NodeRoleChange): role is NodeRoleChange & { capacity?
 function useLayout() {
   return useQuery({
     queryKey: ["layout"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetClusterLayout");
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
-    },
+    queryFn: () => unwrap(getClient().GET("/v2/GetClusterLayout")),
   });
 }
 
 function useLayoutHistory() {
   return useQuery({
     queryKey: ["layout-history"],
-    queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetClusterLayoutHistory");
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
-    },
+    queryFn: () => unwrap(getClient().GET("/v2/GetClusterLayoutHistory")),
   });
 }
 
@@ -138,11 +130,10 @@ function LayoutActions({ hasStagedChanges = false }: { hasStagedChanges?: boolea
 
   const apply = useMutation({
     mutationFn: async () => {
-      const { data: layout } = await getClient().GET("/v2/GetClusterLayout");
-      const { error } = await getClient().POST("/v2/ApplyClusterLayout", {
+      const layout = await unwrap(getClient().GET("/v2/GetClusterLayout"));
+      await unwrap(getClient().POST("/v2/ApplyClusterLayout", {
         body: { version: (layout?.version ?? 0) + 1 },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["layout"] }); toast({ title: "Layout applied" }); },
     onError: (e: Error) => toast({ title: "Failed to apply", description: e.message, variant: "destructive" }),
@@ -150,8 +141,7 @@ function LayoutActions({ hasStagedChanges = false }: { hasStagedChanges?: boolea
 
   const revert = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/RevertClusterLayout");
-      if (error) throw new Error(JSON.stringify(error));
+      await unwrap(getClient().POST("/v2/RevertClusterLayout"));
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["layout"] }); toast({ title: "Layout reverted" }); },
     onError: (e: Error) => toast({ title: "Failed to revert", description: e.message, variant: "destructive" }),
@@ -159,9 +149,7 @@ function LayoutActions({ hasStagedChanges = false }: { hasStagedChanges?: boolea
 
   const preview = useMutation({
     mutationFn: async () => {
-      const { data, error } = await getClient().POST("/v2/PreviewClusterLayoutChanges");
-      if (error) throw new Error(JSON.stringify(error));
-      return data;
+      return unwrap(getClient().POST("/v2/PreviewClusterLayoutChanges"));
     },
     onSuccess: (data) => setPreviewResult(JSON.stringify(data, null, 2)),
     onError: (e: Error) => toast({ title: "Failed", description: e.message, variant: "destructive" }),
@@ -200,10 +188,9 @@ function SkipDeadNodesDialog({ open, onClose }: { open: boolean; onClose: () => 
 
   const skip = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/ClusterLayoutSkipDeadNodes", {
+      await unwrap(getClient().POST("/v2/ClusterLayoutSkipDeadNodes", {
         body: { version: Number(version), allowMissingData: allowMissing },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["layout"] });

@@ -71,6 +71,7 @@ Built with React 19, Vite 6, shadcn/ui, TanStack Query, and the Garage v2 admin 
 
 ### ⚙️ Settings
 - Configure Admin API base URL and token
+- **Test Connection** button — verifies the URL + token against the live cluster before you rely on them
 - Configure S3 endpoint, access key ID, and secret
 - Export all settings to a JSON file
 - Import settings from a JSON file (applied immediately, no manual Save needed)
@@ -88,7 +89,7 @@ Go to **Settings → Admin API**:
 | Base URL | `http://<garage-host>:3903` |
 | Admin Token | value of `admin_token` in your `garage.toml` |
 
-Click **Save**.
+Click **Test Connection** to confirm the UI can reach the cluster (it pings cluster health and reports the result inline), then **Save**.
 
 > In dev mode you can leave the Base URL as `/api` — Vite proxies it to `localhost:3903`.
 
