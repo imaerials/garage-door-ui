@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ApiError } from "@/api/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ClusterPage } from "@/pages/cluster/ClusterPage";
 import { BucketsPage } from "@/pages/buckets/BucketsPage";
@@ -15,7 +16,11 @@ import { SettingsPage } from "@/pages/SettingsPage";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      // Don't retry client errors (bad token, bad request) — only transient ones.
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
+        return failureCount < 1;
+      },
       staleTime: 5_000,
     },
   },

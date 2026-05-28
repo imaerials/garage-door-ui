@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getClient } from "@/api/client";
+import { getClient, unwrap } from "@/api/client";
 import {
   ListObjectsV2Command,
   DeleteObjectCommand,
@@ -193,7 +193,7 @@ function UploadZone({ bucket, prefix, onUploaded }: { bucket: string; prefix: st
 function ConfigureCorsButton({ bucket }: { bucket: string }) {
   const configure = useMutation({
     mutationFn: async () => {
-      const { error } = await getClient().POST("/v2/UpdateBucket", {
+      await unwrap(getClient().POST("/v2/UpdateBucket", {
         params: { query: { id: bucket } },
         body: {
           corsRules: [
@@ -205,8 +205,7 @@ function ConfigureCorsButton({ bucket }: { bucket: string }) {
             },
           ],
         },
-      });
-      if (error) throw new Error(JSON.stringify(error));
+      }));
     },
     onSuccess: () => toast({ title: "CORS configured", description: "Bucket now allows cross-origin requests." }),
     onError: (e: Error) => toast({ title: "Failed to configure CORS", description: e.message, variant: "destructive" }),
@@ -408,11 +407,9 @@ export function BucketBrowserPage() {
   const { data: bucketInfo } = useQuery({
     queryKey: ["bucket-info", bucket],
     queryFn: async () => {
-      const { data, error } = await getClient().GET("/v2/GetBucketInfo", {
+      return unwrap(getClient().GET("/v2/GetBucketInfo", {
         params: { query: { id: bucket } },
-      });
-      if (error) throw new Error(JSON.stringify(error));
-      return data!;
+      }));
     },
     staleTime: 60_000,
   });
