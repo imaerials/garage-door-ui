@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import {
-  Server, Archive, Key, ShieldCheck, Wrench, HardDrive, LayoutGrid, Activity,
+  Server, Archive, Key, ShieldCheck, Wrench, HardDrive, LayoutGrid, Activity, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ const nav = [
   { label: "Cluster", icon: Activity, to: "/cluster" },
   { label: "Layout", icon: LayoutGrid, to: "/layout" },
   { label: "Buckets", icon: Archive, to: "/buckets" },
+  { label: "Recent Files", icon: Clock, to: "/recent" },
   { label: "Access Keys", icon: Key, to: "/keys" },
   { label: "Admin Tokens", icon: ShieldCheck, to: "/tokens" },
   { label: "Workers", icon: Wrench, to: "/workers" },

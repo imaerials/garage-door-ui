@@ -31,6 +31,13 @@ Built with React 19, Vite 6, shadcn/ui, TanStack Query, and the Garage v2 admin 
 ### 🌐 Cluster
 - Live node status, health tiles, per-node storage bars
 - Aggregate storage summary (total / used / free with color-coded progress bar)
+- **Connect nodes** — join nodes to the cluster by RPC address (`<node-id>@<host>:<port>`), with per-address success/error feedback
+- **Per-node detail** — click a node ID for its daemon info (version, DB engine, rustc, features) and live statistics (block manager + metadata table stats)
+
+### 🕒 Recent Files
+- Cross-bucket view of the most recently modified objects, sorted newest-first
+- Scans every bucket over S3 (bounded per bucket) and links each result back into the bucket browser
+- Manual refresh; shows how many objects/buckets were scanned
 
 ### 🗺️ Layout
 - View current node roles and staged changes

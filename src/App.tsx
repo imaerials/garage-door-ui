@@ -10,6 +10,7 @@ import { KeysPage } from "@/pages/keys/KeysPage";
 import { TokensPage } from "@/pages/tokens/TokensPage";
 import { WorkersPage } from "@/pages/workers/WorkersPage";
 import { BlocksPage } from "@/pages/blocks/BlocksPage";
+import { RecentFilesPage } from "@/pages/recent/RecentFilesPage";
 import { LayoutPage } from "@/pages/layout/LayoutPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/buckets" element={<BucketsPage />} />
             <Route path="/buckets/:id" element={<BucketBrowserPage />} />
             <Route path="/buckets/:id/settings" element={<BucketDetailPage />} />
+            <Route path="/recent" element={<RecentFilesPage />} />
             <Route path="/keys" element={<KeysPage />} />
             <Route path="/tokens" element={<TokensPage />} />
             <Route path="/workers" element={<WorkersPage />} />
