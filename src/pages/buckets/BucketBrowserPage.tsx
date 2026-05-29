@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getClient, unwrap } from "@/api/client";
 import {
@@ -18,13 +18,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { S3NotConfigured } from "@/components/layout/S3NotConfigured";
 import { getS3Client, s3Configured } from "@/api/s3client";
 import { formatBytes, truncate } from "@/lib/utils";
 import {
   Folder, File, ArrowLeft, Trash2, Download, Upload as UploadIcon,
-  AlertCircle, ChevronRight, ChevronLeft, Settings, ShieldCheck,
-  FolderPlus, Eye,
+  ChevronRight, ChevronLeft, ShieldCheck, FolderPlus, Eye,
+  FileImage, FileText, FileCode, FileArchive, FileAudio, FileVideo,
+  ArrowUpDown, ArrowUp, ArrowDown, Search,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 100;
@@ -220,6 +223,43 @@ function ConfigureCorsButton({ bucket }: { bucket: string }) {
 
 const IMAGE_EXTS = new Set(["jpg","jpeg","png","gif","webp","svg","bmp","ico","avif"]);
 const TEXT_EXTS = new Set(["txt","md","yaml","yml","toml","ini","log","sh","bash","csv","xml","html","htm","css","js","ts","jsx","tsx","py","rb","rs","go","java","c","cpp","h","sql","conf","env"]);
+const CODE_EXTS = new Set(["js","ts","jsx","tsx","py","rb","rs","go","java","c","cpp","h","sh","bash","css","html","htm","xml","sql","json","yaml","yml","toml"]);
+const ARCHIVE_EXTS = new Set(["zip","tar","gz","tgz","bz2","xz","7z","rar","zst"]);
+const AUDIO_EXTS = new Set(["mp3","wav","flac","ogg","m4a","aac"]);
+const VIDEO_EXTS = new Set(["mp4","mkv","webm","mov","avi","wmv","flv"]);
+
+function getFileIcon(key: string): { Icon: LucideIcon; color: string } {
+  const ext = key.split(".").pop()?.toLowerCase() ?? "";
+  if (IMAGE_EXTS.has(ext)) return { Icon: FileImage, color: "text-purple-500" };
+  if (ext === "pdf") return { Icon: FileText, color: "text-red-500" };
+  if (ARCHIVE_EXTS.has(ext)) return { Icon: FileArchive, color: "text-amber-500" };
+  if (AUDIO_EXTS.has(ext)) return { Icon: FileAudio, color: "text-pink-500" };
+  if (VIDEO_EXTS.has(ext)) return { Icon: FileVideo, color: "text-indigo-500" };
+  if (CODE_EXTS.has(ext)) return { Icon: FileCode, color: "text-blue-500" };
+  if (TEXT_EXTS.has(ext)) return { Icon: FileText, color: "text-muted-foreground" };
+  return { Icon: File, color: "text-muted-foreground" };
+}
+
+type SortCol = "name" | "size" | "date";
+type SortState = { col: SortCol; dir: "asc" | "desc" };
+
+function SortableTh({ label, col, sort, setSort, className }: {
+  label: string; col: SortCol; sort: SortState;
+  setSort: React.Dispatch<React.SetStateAction<SortState>>; className?: string;
+}) {
+  const active = sort.col === col;
+  const Icon = !active ? ArrowUpDown : sort.dir === "asc" ? ArrowUp : ArrowDown;
+  return (
+    <th className={cn("text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wide", className)}>
+      <button
+        className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+        onClick={() => setSort((s) => ({ col, dir: s.col === col && s.dir === "asc" ? "desc" : "asc" }))}
+      >
+        {label}<Icon className={cn("h-3 w-3", active ? "text-foreground" : "opacity-40")} />
+      </button>
+    </th>
+  );
+}
 
 type PreviewType = "image" | "text" | "json" | "pdf" | "unsupported";
 
@@ -401,7 +441,6 @@ function CreateFolderDialog({ bucket, prefix, onCreated, onClose }: {
 
 export function BucketBrowserPage() {
   const { id: bucket = "" } = useParams<{ id: string }>();
-  const navigate = useNavigate();
   const qc = useQueryClient();
 
   const { data: bucketInfo } = useQuery({
@@ -424,17 +463,38 @@ export function BucketBrowserPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [previewObj, setPreviewObj] = useState<S3Object | null>(null);
+  const [filter, setFilter] = useState("");
+  const [sort, setSort] = useState<SortState>({ col: "name", dir: "asc" });
 
   const { data, isLoading, error, refetch } = useObjects(bucket, prefix, continuationToken);
   const objects = data?.objects ?? [];
-  const files = objects.filter((o) => !o.isFolder);
   const pageNum = prevTokens.length + 1;
+
+  // Filter + sort the current page client-side. Folders always sort first by
+  // name; files honor the selected column/direction.
+  const visible = useMemo(() => {
+    const nameOf = (o: S3Object) => o.key.slice(prefix.length);
+    const f = filter.trim().toLowerCase();
+    const list = f ? objects.filter((o) => nameOf(o).toLowerCase().includes(f)) : objects;
+    const folders = list.filter((o) => o.isFolder).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
+    const files = list.filter((o) => !o.isFolder).sort((a, b) => {
+      let cmp = 0;
+      if (sort.col === "name") cmp = nameOf(a).localeCompare(nameOf(b));
+      else if (sort.col === "size") cmp = a.size - b.size;
+      else cmp = a.lastModified.getTime() - b.lastModified.getTime();
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+    return [...folders, ...files];
+  }, [objects, filter, sort, prefix]);
+
+  const files = visible.filter((o) => !o.isFolder);
 
   const navigateToPrefix = (newPrefix: string) => {
     setPrefix(newPrefix);
     setContinuationToken(undefined);
     setPrevTokens([]);
     setSelected(new Set());
+    setFilter("");
   };
 
   const nextPage = () => {
@@ -508,20 +568,7 @@ export function BucketBrowserPage() {
       <div>
         <PageHeader title={bucketName} description="Bucket browser" />
         <div className="p-8">
-          <Card>
-            <CardContent className="flex flex-col items-center py-16 gap-4 text-center">
-              <AlertCircle className="h-10 w-10 text-muted-foreground" />
-              <div>
-                <p className="font-medium">S3 credentials not configured</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add your S3 endpoint and access key in Settings to browse bucket contents.
-                </p>
-              </div>
-              <Button size="sm" onClick={() => navigate("/settings")}>
-                <Settings className="h-4 w-4" />Go to Settings
-              </Button>
-            </CardContent>
-          </Card>
+          <S3NotConfigured />
         </div>
       </div>
     );
@@ -531,7 +578,7 @@ export function BucketBrowserPage() {
     <div>
       <PageHeader
         title={bucketName}
-        description={<Breadcrumb bucket={bucket} prefix={prefix} onNavigate={navigateToPrefix} /> as unknown as string}
+        description={<Breadcrumb bucket={bucket} prefix={prefix} onNavigate={navigateToPrefix} />}
         actions={
           <div className="flex gap-2">
             <ConfigureCorsButton bucket={bucket} />
@@ -577,6 +624,23 @@ export function BucketBrowserPage() {
           </div>
         )}
 
+        {objects.length > 0 && (
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Filter this folder…"
+                className="pl-9 h-9"
+              />
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {visible.length} of {objects.length} item{objects.length === 1 ? "" : "s"}
+            </span>
+          </div>
+        )}
+
         <Card>
           {isLoading ? (
             <LoadingState label="Listing objects…" />
@@ -605,15 +669,23 @@ export function BucketBrowserPage() {
                         title="Select all files"
                       />
                     </th>
-                    {["Name", "Size", "Last Modified", ""].map((h, i) => (
-                      <th key={i} className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">{h}</th>
-                    ))}
+                    <SortableTh label="Name" col="name" sort={sort} setSort={setSort} />
+                    <SortableTh label="Size" col="size" sort={sort} setSort={setSort} />
+                    <SortableTh label="Last Modified" col="date" sort={sort} setSort={setSort} />
+                    <th className="px-4 py-2.5" />
                   </tr>
                 </thead>
                 <tbody>
-                  {objects.map((obj) => {
+                  {visible.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                        No items match “{filter}”.
+                      </td>
+                    </tr>
+                  ) : visible.map((obj) => {
                     const name = obj.key.slice(prefix.length);
                     const isSelected = selected.has(obj.key);
+                    const fileIcon = obj.isFolder ? null : getFileIcon(obj.key);
                     return (
                       <tr
                         key={obj.key}
@@ -642,7 +714,7 @@ export function BucketBrowserPage() {
                           >
                             {obj.isFolder
                               ? <Folder className="h-4 w-4 text-yellow-500 shrink-0" />
-                              : <File className="h-4 w-4 text-muted-foreground shrink-0" />}
+                              : fileIcon && <fileIcon.Icon className={cn("h-4 w-4 shrink-0", fileIcon.color)} />}
                             <span className="font-mono text-xs">{name}</span>
                           </button>
                         </td>

@@ -1,15 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { getClient, unwrap } from "@/api/client";
 import { getS3Client, s3Configured } from "@/api/s3client";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState, ErrorState } from "@/components/layout/QueryState";
+import { S3NotConfigured } from "@/components/layout/S3NotConfigured";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatBytes, truncate } from "@/lib/utils";
-import { AlertCircle, RefreshCw, Settings, FolderOpen } from "lucide-react";
+import { RefreshCw, FolderOpen } from "lucide-react";
 
 const MAX_OBJECTS_PER_BUCKET = 2000;
 const PAGE_SIZE = 1000;
@@ -82,27 +83,12 @@ function useRecentFiles() {
 }
 
 export function RecentFilesPage() {
-  const navigate = useNavigate();
-
   if (!s3Configured()) {
     return (
       <div>
         <PageHeader title="Recent Files" description="Recently modified objects across all buckets" />
         <div className="p-8">
-          <Card>
-            <CardContent className="flex flex-col items-center py-16 gap-4 text-center">
-              <AlertCircle className="h-10 w-10 text-muted-foreground" />
-              <div>
-                <p className="font-medium">S3 credentials not configured</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Add your S3 endpoint and access key in Settings to scan bucket contents.
-                </p>
-              </div>
-              <Button size="sm" onClick={() => navigate("/settings")}>
-                <Settings className="h-4 w-4" />Go to Settings
-              </Button>
-            </CardContent>
-          </Card>
+          <S3NotConfigured action="scan bucket contents" />
         </div>
       </div>
     );

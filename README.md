@@ -44,7 +44,8 @@ Built with React 19, Vite 6, shadcn/ui, TanStack Query, and the Garage v2 admin 
 - Apply, revert, or preview layout changes; full layout history
 
 ### 🪣 Buckets
-- List, create, and delete buckets
+- Searchable bucket cards leading with friendly names, showing per-bucket size + object count and alias badges (copy bucket ID in one click)
+- Create and delete buckets
 - Manage key permissions per bucket (grant/revoke read, write, owner per key)
 - Configure S3 CORS rules with one click
 
@@ -52,6 +53,7 @@ Built with React 19, Vite 6, shadcn/ui, TanStack Query, and the Garage v2 admin 
 - Folder navigation with breadcrumb trail
 - Drag-and-drop file upload with per-file progress bars (multipart for files > 5 MB)
 - Paginated object listing (100 items per page, continuation token navigation)
+- File-type icons, sortable columns (name / size / date), and an in-folder filter box
 - Multi-select files with bulk delete
 - Create folders
 - Download and delete individual files
